@@ -674,15 +674,17 @@ const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
   );
 };
 
-const SongsLibrary = () => {
+const SongsLibrary = ({ songs }: { songs: typeof SONGS_LIBRARY }) => {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
 
-  const filteredSongs = SONGS_LIBRARY.filter(song => {
+  const filteredSongs = songs.filter(song => {
     const genreMatch = selectedGenre === 'all' || song.genre === selectedGenre;
     const difficultyMatch = selectedDifficulty === 'all' || song.difficulty === selectedDifficulty;
     return genreMatch && difficultyMatch;
   });
+
+  const allGenres = ['all', ...new Set(songs.map(s => s.genre))];
 
   return (
     <Card>
@@ -693,7 +695,7 @@ const SongsLibrary = () => {
               <Icon name="Library" className="text-purple-500" />
               Библиотека песен
             </CardTitle>
-            <CardDescription>Разбирай популярные композиции с табулатурами</CardDescription>
+            <CardDescription>Разбирай популярные композиции с табулатурами ({songs.length} композиций)</CardDescription>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Select value={selectedGenre} onValueChange={setSelectedGenre}>
@@ -701,10 +703,11 @@ const SongsLibrary = () => {
                 <SelectValue placeholder="Жанр" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Все жанры</SelectItem>
-                <SelectItem value="Rock">Rock</SelectItem>
-                <SelectItem value="Pop">Pop</SelectItem>
-                <SelectItem value="Folk">Folk</SelectItem>
+                {allGenres.map(genre => (
+                  <SelectItem key={genre} value={genre}>
+                    {genre === 'all' ? 'Все жанры' : genre}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             
@@ -790,7 +793,7 @@ const ChordDiagram = ({ chord }: { chord: typeof CHORDS_DATA[0] }) => {
   );
 };
 
-const TablatureEditor = () => {
+const TablatureEditor = ({ onSave }: { onSave: (song: any) => void }) => {
   const [tabs, setTabs] = useState([
     { string: 1, frets: Array(24).fill('-') },
     { string: 2, frets: Array(24).fill('-') },
@@ -806,6 +809,7 @@ const TablatureEditor = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
   const [bpm, setBpm] = useState(100);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<number | null>(null);
 
@@ -963,6 +967,23 @@ const TablatureEditor = () => {
     reader.readAsText(file);
   };
 
+  const saveToLibrary = () => {
+    if (!songTitle.trim()) {
+      alert('Введите название композиции');
+      return;
+    }
+
+    onSave({
+      title: songTitle,
+      artist: artist || 'Неизвестный исполнитель',
+      tabs: tabs,
+      bpm: bpm
+    });
+
+    setShowSaveDialog(true);
+    setTimeout(() => setShowSaveDialog(false), 3000);
+  };
+
   return (
     <Card className="animate-fade-in">
       <CardHeader>
@@ -1100,6 +1121,10 @@ const TablatureEditor = () => {
             <Icon name={isPlaying ? 'Pause' : 'Play'} className="w-4 h-4 mr-1" />
             {isPlaying ? 'Стоп' : 'Играть'}
           </Button>
+          <Button onClick={saveToLibrary} className="bg-green-600 hover:bg-green-700">
+            <Icon name="Save" className="w-4 h-4 mr-1" />
+            В библиотеку
+          </Button>
           <Button variant="outline" onClick={exportToJSON}>
             <Icon name="Download" className="w-4 h-4 mr-1" />
             Экспорт JSON
@@ -1120,11 +1145,22 @@ const TablatureEditor = () => {
           </label>
         </div>
 
+        {showSaveDialog && (
+          <div className="mt-4 bg-green-50 border-2 border-green-500 rounded-lg p-4 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <Icon name="CheckCircle" className="text-green-600" size={20} />
+              <div className="text-sm text-green-800 font-medium">
+                Композиция "{songTitle}" успешно добавлена в библиотеку! 🎸
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start gap-2">
             <Icon name="Info" className="text-blue-600 mt-0.5" size={16} />
             <div className="text-sm text-blue-800">
-              <strong>Подсказка:</strong> Кликни на ячейку и введи номер лада (0-24) или "-" для пустой позиции. Используй стрелки для навигации.
+              <strong>Подсказка:</strong> Кликни на ячейку и введи номер лада (0-24) или "-" для пустой позиции. Используй стрелки для навигации. Сохрани композицию в библиотеку кнопкой "В библиотеку".
             </div>
           </div>
         </div>
@@ -1323,6 +1359,28 @@ const Metronome = () => {
 
 const Index = () => {
   const [userProgress] = useState(67);
+  const [customSongs, setCustomSongs] = useState<typeof SONGS_LIBRARY>([]);
+
+  const addCustomSong = (songData: {
+    title: string;
+    artist: string;
+    tabs: Array<{ string: number; frets: (string | number)[] }>;
+    bpm: number;
+  }) => {
+    const newSong = {
+      id: Date.now(),
+      title: songData.title,
+      artist: songData.artist,
+      genre: 'Custom',
+      difficulty: 'medium' as const,
+      chords: ['Custom'],
+      duration: '0:00',
+      tabs: songData.tabs
+    };
+    setCustomSongs([newSong, ...customSongs]);
+  };
+
+  const allSongs = [...customSongs, ...SONGS_LIBRARY];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
@@ -1380,7 +1438,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="songs" className="space-y-4 animate-fade-in">
-            <SongsLibrary />
+            <SongsLibrary songs={allSongs} />
           </TabsContent>
 
           <TabsContent value="chords" className="space-y-4 animate-fade-in">
@@ -1405,7 +1463,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="tabs" className="space-y-4">
-            <TablatureEditor />
+            <TablatureEditor onSave={addCustomSong} />
             
             <Card className="animate-fade-in">
               <CardHeader>
