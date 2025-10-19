@@ -791,76 +791,342 @@ const ChordDiagram = ({ chord }: { chord: typeof CHORDS_DATA[0] }) => {
 };
 
 const TablatureEditor = () => {
-  const [tabs] = useState([
-    { string: 1, frets: [0, 1, 3, 1, 0, '-', '-', '-'] },
-    { string: 2, frets: ['-', '-', '-', '-', '-', 0, 1, 0] },
-    { string: 3, frets: ['-', '-', '-', '-', '-', '-', '-', 2] },
-    { string: 4, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
-    { string: 5, frets: [3, 3, 3, 3, 3, '-', '-', '-'] },
-    { string: 6, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] }
+  const [tabs, setTabs] = useState([
+    { string: 1, frets: Array(24).fill('-') },
+    { string: 2, frets: Array(24).fill('-') },
+    { string: 3, frets: Array(24).fill('-') },
+    { string: 4, frets: Array(24).fill('-') },
+    { string: 5, frets: Array(24).fill('-') },
+    { string: 6, frets: Array(24).fill('-') }
   ]);
+  const [songTitle, setSongTitle] = useState('Новая композиция');
+  const [artist, setArtist] = useState('');
+  const [selectedString, setSelectedString] = useState<number | null>(null);
+  const [selectedFretIndex, setSelectedFretIndex] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
+  const [bpm, setBpm] = useState(100);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
+
+  const getStringFrequency = (stringNum: number, fret: number): number => {
+    const openStringFrequencies = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
+    const baseFreq = openStringFrequencies[stringNum - 1];
+    return baseFreq * Math.pow(2, fret / 12);
+  };
+
+  const playNote = (stringNum: number, fret: number) => {
+    if (!audioContextRef.current || fret === '-') return;
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = getStringFrequency(stringNum, Number(fret));
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.8);
+  };
+
+  const handleCellClick = (stringIdx: number, fretIdx: number) => {
+    setSelectedString(stringIdx);
+    setSelectedFretIndex(fretIdx);
+  };
+
+  const handleFretInput = (value: string) => {
+    if (selectedString === null || selectedFretIndex === null) return;
+    
+    const validInput = /^([0-9]{1,2}|-)?$/;
+    if (!validInput.test(value)) return;
+    
+    const fretValue = value === '' || value === '-' ? '-' : value;
+    const numValue = Number(fretValue);
+    
+    if (fretValue !== '-' && (numValue < 0 || numValue > 24)) return;
+
+    const newTabs = [...tabs];
+    newTabs[selectedString].frets[selectedFretIndex] = fretValue;
+    setTabs(newTabs);
+
+    if (fretValue !== '-') {
+      playNote(newTabs[selectedString].string, Number(fretValue));
+    }
+  };
+
+  const addColumn = () => {
+    const newTabs = tabs.map(line => ({
+      ...line,
+      frets: [...line.frets, '-']
+    }));
+    setTabs(newTabs);
+  };
+
+  const removeColumn = (index: number) => {
+    if (tabs[0].frets.length <= 1) return;
+    const newTabs = tabs.map(line => ({
+      ...line,
+      frets: line.frets.filter((_, i) => i !== index)
+    }));
+    setTabs(newTabs);
+  };
+
+  const clearAll = () => {
+    const newTabs = tabs.map(line => ({
+      ...line,
+      frets: line.frets.map(() => '-')
+    }));
+    setTabs(newTabs);
+    setSelectedString(null);
+    setSelectedFretIndex(null);
+  };
+
+  const playTabulation = () => {
+    if (isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setIsPlaying(false);
+      setCurrentNoteIndex(-1);
+      return;
+    }
+
+    setIsPlaying(true);
+    let noteIdx = 0;
+    const maxNotes = tabs[0].frets.length;
+
+    const playNextNote = () => {
+      if (noteIdx >= maxNotes) {
+        setIsPlaying(false);
+        setCurrentNoteIndex(-1);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        return;
+      }
+
+      tabs.forEach((line) => {
+        const fret = line.frets[noteIdx];
+        if (fret !== '-') {
+          playNote(line.string, Number(fret));
+        }
+      });
+
+      setCurrentNoteIndex(noteIdx);
+      noteIdx++;
+    };
+
+    playNextNote();
+    intervalRef.current = window.setInterval(playNextNote, (60 / bpm) * 1000);
+  };
+
+  const exportToJSON = () => {
+    const tabData = {
+      title: songTitle,
+      artist: artist,
+      tabs: tabs,
+      bpm: bpm
+    };
+    const dataStr = JSON.stringify(tabData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `${songTitle.replace(/\s+/g, '_')}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const importFromJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+        if (data.tabs && Array.isArray(data.tabs)) {
+          setTabs(data.tabs);
+          setSongTitle(data.title || 'Новая композиция');
+          setArtist(data.artist || '');
+          setBpm(data.bpm || 100);
+        }
+      } catch (error) {
+        alert('Ошибка при чтении файла');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <Card className="animate-fade-in">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 mb-3">
               <Icon name="Music" className="text-purple-500" />
               Редактор табулатур
             </CardTitle>
-            <CardDescription>Создавай и изучай композиции в формате TAB</CardDescription>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={songTitle}
+                onChange={(e) => setSongTitle(e.target.value)}
+                placeholder="Название композиции"
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <input
+                type="text"
+                value={artist}
+                onChange={(e) => setArtist(e.target.value)}
+                placeholder="Исполнитель"
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Icon name="Play" className="w-4 h-4 mr-1" />
-              Играть
-            </Button>
-            <Button size="sm">
-              <Icon name="Save" className="w-4 h-4 mr-1" />
-              Сохранить
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+              <span className="text-sm font-medium">BPM:</span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setBpm(Math.max(40, bpm - 10))}
+                className="h-7 w-7 p-0"
+              >
+                -
+              </Button>
+              <span className="text-sm font-semibold w-10 text-center">{bpm}</span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setBpm(Math.min(200, bpm + 10))}
+                className="h-7 w-7 p-0"
+              >
+                +
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-100">
-          <div className="font-mono text-sm space-y-1 overflow-x-auto">
-            {tabs.map((line, idx) => (
-              <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
-                <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
-                <span className="text-gray-400">|</span>
-                <div className="flex gap-3">
-                  {line.frets.map((fret, fretIdx) => (
-                    <span
-                      key={fretIdx}
-                      className={`w-6 text-center ${
-                        fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
-                      }`}
-                    >
-                      {fret}
-                    </span>
-                  ))}
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-100 mb-4">
+          <div className="overflow-x-auto">
+            <div className="font-mono text-sm space-y-1 inline-block min-w-full">
+              {tabs.map((line, stringIdx) => (
+                <div key={stringIdx} className="flex gap-2 items-center px-2 py-1">
+                  <span className="text-gray-600 font-semibold w-4">e{7 - stringIdx}</span>
+                  <span className="text-gray-400">|</span>
+                  <div className="flex gap-1">
+                    {line.frets.map((fret, fretIdx) => (
+                      <div
+                        key={fretIdx}
+                        onClick={() => handleCellClick(stringIdx, fretIdx)}
+                        className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded transition-all ${
+                          selectedString === stringIdx && selectedFretIndex === fretIdx
+                            ? 'bg-purple-500 text-white ring-2 ring-purple-600 scale-110'
+                            : currentNoteIndex === fretIdx && fret !== '-'
+                            ? 'bg-blue-400 text-white scale-110'
+                            : fret !== '-'
+                            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                            : 'bg-white text-gray-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        {fret}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-gray-400">|</span>
                 </div>
-                <span className="text-gray-400">|</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+          
+          {(selectedString !== null && selectedFretIndex !== null) && (
+            <div className="mt-4 flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-purple-200">
+              <Icon name="Edit" className="text-purple-500" size={20} />
+              <span className="text-sm font-medium">Струна {tabs[selectedString].string}, позиция {selectedFretIndex + 1}:</span>
+              <input
+                type="text"
+                value={tabs[selectedString].frets[selectedFretIndex]}
+                onChange={(e) => handleFretInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight' && selectedFretIndex < tabs[0].frets.length - 1) {
+                    setSelectedFretIndex(selectedFretIndex + 1);
+                  } else if (e.key === 'ArrowLeft' && selectedFretIndex > 0) {
+                    setSelectedFretIndex(selectedFretIndex - 1);
+                  } else if (e.key === 'ArrowDown' && selectedString < tabs.length - 1) {
+                    setSelectedString(selectedString + 1);
+                  } else if (e.key === 'ArrowUp' && selectedString > 0) {
+                    setSelectedString(selectedString - 1);
+                  }
+                }}
+                placeholder="0-24 или -"
+                className="w-20 px-3 py-1 border rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-purple-500"
+                autoFocus
+              />
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  if (selectedFretIndex !== null) {
+                    removeColumn(selectedFretIndex);
+                  }
+                }}
+              >
+                <Icon name="X" className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
         
-        <div className="mt-4 flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Button variant="outline" onClick={addColumn}>
             <Icon name="Plus" className="w-4 h-4 mr-1" />
-            Добавить ноту
+            Добавить позицию
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" onClick={clearAll}>
             <Icon name="Eraser" className="w-4 h-4 mr-1" />
-            Очистить
+            Очистить всё
           </Button>
-          <Button variant="outline" size="sm">
+          <Button 
+            onClick={playTabulation}
+            variant={isPlaying ? 'destructive' : 'default'}
+          >
+            <Icon name={isPlaying ? 'Pause' : 'Play'} className="w-4 h-4 mr-1" />
+            {isPlaying ? 'Стоп' : 'Играть'}
+          </Button>
+          <Button variant="outline" onClick={exportToJSON}>
             <Icon name="Download" className="w-4 h-4 mr-1" />
-            Экспорт
+            Экспорт JSON
           </Button>
+          <label className="col-span-2 md:col-span-1">
+            <Button variant="outline" className="w-full" asChild>
+              <span>
+                <Icon name="Upload" className="w-4 h-4 mr-1" />
+                Импорт JSON
+              </span>
+            </Button>
+            <input
+              type="file"
+              accept=".json"
+              onChange={importFromJSON}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <Icon name="Info" className="text-blue-600 mt-0.5" size={16} />
+            <div className="text-sm text-blue-800">
+              <strong>Подсказка:</strong> Кликни на ячейку и введи номер лада (0-24) или "-" для пустой позиции. Используй стрелки для навигации.
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
