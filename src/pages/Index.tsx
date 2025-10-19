@@ -200,9 +200,98 @@ const getDifficultyLabel = (difficulty: string) => {
 
 const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
   const [open, setOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
+  const [bpm, setBpm] = useState(100);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
+
+  const getStringFrequency = (stringNum: number, fret: number): number => {
+    const openStringFrequencies = [
+      329.63, // E (1st string)
+      246.94, // B (2nd string)
+      196.00, // G (3rd string)
+      146.83, // D (4th string)
+      110.00, // A (5th string)
+      82.41   // E (6th string)
+    ];
+    
+    const baseFreq = openStringFrequencies[stringNum - 1];
+    return baseFreq * Math.pow(2, fret / 12);
+  };
+
+  const playNote = (stringNum: number, fret: number) => {
+    if (!audioContextRef.current || fret === '-') return;
+    
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = getStringFrequency(stringNum, Number(fret));
+    
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.8);
+  };
+
+  const playTabulation = () => {
+    if (isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setIsPlaying(false);
+      setCurrentNoteIndex(-1);
+      return;
+    }
+
+    setIsPlaying(true);
+    let noteIdx = 0;
+    const maxNotes = song.tabs[0].frets.length;
+
+    const playNextNote = () => {
+      if (noteIdx >= maxNotes) {
+        setIsPlaying(false);
+        setCurrentNoteIndex(-1);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        return;
+      }
+
+      song.tabs.forEach((line) => {
+        const fret = line.frets[noteIdx];
+        if (fret !== '-') {
+          playNote(line.string, Number(fret));
+        }
+      });
+
+      setCurrentNoteIndex(noteIdx);
+      noteIdx++;
+    };
+
+    playNextNote();
+    intervalRef.current = window.setInterval(playNextNote, (60 / bpm) * 1000);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen && isPlaying) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setIsPlaying(false);
+        setCurrentNoteIndex(-1);
+      }
+    }}>
       <DialogTrigger asChild>
         <Card className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-purple-300">
           <CardContent className="p-4">
@@ -270,10 +359,34 @@ const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
           </div>
 
           <div>
-            <h4 className="font-semibold mb-3 flex items-center gap-2">
-              <Icon name="FileMusic" size={18} />
-              Табулатура
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Icon name="FileMusic" size={18} />
+                Табулатура
+              </h4>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Темп:</span>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setBpm(Math.max(40, bpm - 10))}
+                    disabled={isPlaying}
+                  >
+                    -
+                  </Button>
+                  <span className="text-sm font-semibold w-12 text-center">{bpm}</span>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setBpm(Math.min(200, bpm + 10))}
+                    disabled={isPlaying}
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-xl border-2 border-purple-100">
               <div className="font-mono text-sm space-y-1 overflow-x-auto">
                 {song.tabs.map((line, idx) => (
@@ -284,8 +397,12 @@ const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
                       {line.frets.map((fret, fretIdx) => (
                         <span
                           key={fretIdx}
-                          className={`w-6 text-center ${
-                            fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
+                          className={`w-6 text-center transition-all ${
+                            fret !== '-' 
+                              ? currentNoteIndex === fretIdx
+                                ? 'text-white font-bold bg-purple-500 rounded px-1 scale-125 shadow-lg'
+                                : 'text-purple-600 font-bold bg-purple-100 rounded px-1'
+                              : 'text-gray-400'
                           }`}
                         >
                           {fret}
@@ -300,9 +417,13 @@ const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={() => setOpen(false)}>
-              <Icon name="Play" className="w-4 h-4 mr-2" />
-              Начать разучивать
+            <Button 
+              className="flex-1" 
+              onClick={playTabulation}
+              variant={isPlaying ? 'destructive' : 'default'}
+            >
+              <Icon name={isPlaying ? 'Pause' : 'Play'} className="w-4 h-4 mr-2" />
+              {isPlaying ? 'Остановить' : 'Воспроизвести'}
             </Button>
             <Button variant="outline" onClick={() => setOpen(false)}>
               <Icon name="Bookmark" className="w-4 h-4 mr-2" />
