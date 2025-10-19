@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 
 const CHORDS_DATA = [
@@ -72,6 +74,310 @@ const EXERCISES = [
   { id: 3, name: 'Арпеджио C Major', description: 'Перебор струн в аккорде', progress: 60 },
   { id: 4, name: 'Бой "Шестёрка"', description: 'Популярный ритмический рисунок', progress: 30 }
 ];
+
+const SONGS_LIBRARY = [
+  {
+    id: 1,
+    title: 'Nothing Else Matters',
+    artist: 'Metallica',
+    genre: 'Rock',
+    difficulty: 'medium',
+    chords: ['Em', 'D', 'C', 'G', 'B7'],
+    duration: '6:28',
+    tabs: [
+      { string: 1, frets: [0, 1, 0, 1, 0, 1, 3, 1, 0, 1, 0, 1] },
+      { string: 2, frets: ['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 3, frets: ['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 4, frets: ['-', '-', 2, '-', '-', '-', '-', '-', 2, '-', '-', '-'] },
+      { string: 5, frets: ['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 6, frets: [0, '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'] }
+    ]
+  },
+  {
+    id: 2,
+    title: 'Knockin\' On Heaven\'s Door',
+    artist: 'Bob Dylan',
+    genre: 'Folk',
+    difficulty: 'easy',
+    chords: ['G', 'D', 'Am', 'C'],
+    duration: '2:30',
+    tabs: [
+      { string: 1, frets: [3, 3, 2, 0, 0, '-', '-', '-'] },
+      { string: 2, frets: [3, 2, 3, 1, 1, '-', '-', '-'] },
+      { string: 3, frets: [0, 2, 2, 2, 0, '-', '-', '-'] },
+      { string: 4, frets: [0, 0, 0, 2, 2, '-', '-', '-'] },
+      { string: 5, frets: [2, '-', '-', 0, 3, '-', '-', '-'] },
+      { string: 6, frets: [3, '-', '-', '-', '-', '-', '-', '-'] }
+    ]
+  },
+  {
+    id: 3,
+    title: 'Wonderwall',
+    artist: 'Oasis',
+    genre: 'Rock',
+    difficulty: 'easy',
+    chords: ['Em7', 'G', 'Dsus4', 'A7sus4'],
+    duration: '4:18',
+    tabs: [
+      { string: 1, frets: [3, 3, 3, 3, 3, 3, 3, 3] },
+      { string: 2, frets: [3, 3, 3, 3, 3, 3, 3, 3] },
+      { string: 3, frets: [0, 0, 2, 0, 0, 2, 2, 0] },
+      { string: 4, frets: [2, 0, 0, 2, 0, 0, 2, 2] },
+      { string: 5, frets: [2, 2, '-', 0, 2, '-', 0, 0] },
+      { string: 6, frets: [0, 3, '-', '-', 3, '-', '-', '-'] }
+    ]
+  },
+  {
+    id: 4,
+    title: 'Stairway To Heaven',
+    artist: 'Led Zeppelin',
+    genre: 'Rock',
+    difficulty: 'hard',
+    chords: ['Am', 'E', 'C', 'D', 'F', 'G'],
+    duration: '8:02',
+    tabs: [
+      { string: 1, frets: [0, 1, 3, 5, 3, 1, 0, '-'] },
+      { string: 2, frets: [1, 1, 1, 1, 1, 1, 1, '-'] },
+      { string: 3, frets: [2, 2, 2, 2, 2, 2, 2, '-'] },
+      { string: 4, frets: [2, 2, 2, 2, 2, 2, 2, '-'] },
+      { string: 5, frets: [0, '-', '-', '-', '-', '-', 0, '-'] },
+      { string: 6, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] }
+    ]
+  },
+  {
+    id: 5,
+    title: 'Let It Be',
+    artist: 'The Beatles',
+    genre: 'Pop',
+    difficulty: 'easy',
+    chords: ['C', 'G', 'Am', 'F'],
+    duration: '3:50',
+    tabs: [
+      { string: 1, frets: [0, 3, 1, 1, 0, 3, 1, 1] },
+      { string: 2, frets: [1, 3, 1, 1, 1, 3, 1, 1] },
+      { string: 3, frets: [0, 0, 2, 2, 0, 0, 2, 2] },
+      { string: 4, frets: [2, 0, 2, 3, 2, 0, 2, 3] },
+      { string: 5, frets: [3, 2, 0, 3, 3, 2, 0, 3] },
+      { string: 6, frets: ['-', 3, '-', '-', '-', 3, '-', '-'] }
+    ]
+  },
+  {
+    id: 6,
+    title: 'Smoke On The Water',
+    artist: 'Deep Purple',
+    genre: 'Rock',
+    difficulty: 'easy',
+    chords: ['G5', 'Bb5', 'C5'],
+    duration: '5:40',
+    tabs: [
+      { string: 1, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 2, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 3, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
+      { string: 4, frets: [0, 3, 5, '-', 0, 3, 6, 5] },
+      { string: 5, frets: [0, 3, 5, '-', 0, 3, 6, 5] },
+      { string: 6, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] }
+    ]
+  }
+];
+
+const SongsLibrary = () => {
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
+  const [selectedSong, setSelectedSong] = useState<typeof SONGS_LIBRARY[0] | null>(null);
+
+  const filteredSongs = SONGS_LIBRARY.filter(song => {
+    const genreMatch = selectedGenre === 'all' || song.genre === selectedGenre;
+    const difficultyMatch = selectedDifficulty === 'all' || song.difficulty === selectedDifficulty;
+    return genreMatch && difficultyMatch;
+  });
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy': return 'bg-green-100 text-green-700 border-green-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'hard': return 'bg-red-100 text-red-700 border-red-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
+
+  const getDifficultyLabel = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy': return 'Легко';
+      case 'medium': return 'Средне';
+      case 'hard': return 'Сложно';
+      default: return difficulty;
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Icon name="Library" className="text-purple-500" />
+                Библиотека песен
+              </CardTitle>
+              <CardDescription>Разбирай популярные композиции с табулатурами</CardDescription>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Жанр" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все жанры</SelectItem>
+                  <SelectItem value="Rock">Rock</SelectItem>
+                  <SelectItem value="Pop">Pop</SelectItem>
+                  <SelectItem value="Folk">Folk</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Сложность" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все уровни</SelectItem>
+                  <SelectItem value="easy">Легко</SelectItem>
+                  <SelectItem value="medium">Средне</SelectItem>
+                  <SelectItem value="hard">Сложно</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredSongs.map((song) => (
+              <Dialog key={song.id}>
+                <DialogTrigger asChild>
+                  <Card 
+                    className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-purple-300"
+                    onClick={() => setSelectedSong(song)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg mb-1 line-clamp-1">{song.title}</h3>
+                          <p className="text-sm text-gray-600">{song.artist}</p>
+                        </div>
+                        <Icon name="Play" className="text-purple-500 flex-shrink-0 ml-2" size={20} />
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="outline" className="text-xs">
+                          {song.genre}
+                        </Badge>
+                        <Badge variant="outline" className={`text-xs ${getDifficultyColor(song.difficulty)}`}>
+                          {getDifficultyLabel(song.difficulty)}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                        <Icon name="Clock" size={14} />
+                        <span>{song.duration}</span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1">
+                        {song.chords.slice(0, 4).map((chord, idx) => (
+                          <span key={idx} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-mono">
+                            {chord}
+                          </span>
+                        ))}
+                        {song.chords.length > 4 && (
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
+                            +{song.chords.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-2xl">
+                      <Icon name="Music" className="text-purple-500" />
+                      {song.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-base">
+                      {song.artist} • {song.genre} • {song.duration}
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                        <Icon name="Hand" size={18} />
+                        Аккорды
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {song.chords.map((chord, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
+                            {chord}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Icon name="FileMusic" size={18} />
+                        Табулатура
+                      </h4>
+                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-xl border-2 border-purple-100">
+                        <div className="font-mono text-sm space-y-1 overflow-x-auto">
+                          {song.tabs.map((line, idx) => (
+                            <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
+                              <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
+                              <span className="text-gray-400">|</span>
+                              <div className="flex gap-3">
+                                {line.frets.map((fret, fretIdx) => (
+                                  <span
+                                    key={fretIdx}
+                                    className={`w-6 text-center ${
+                                      fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
+                                    }`}
+                                  >
+                                    {fret}
+                                  </span>
+                                ))}
+                              </div>
+                              <span className="text-gray-400">|</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button className="flex-1">
+                        <Icon name="Play" className="w-4 h-4 mr-2" />
+                        Начать разучивать
+                      </Button>
+                      <Button variant="outline">
+                        <Icon name="Bookmark" className="w-4 h-4 mr-2" />
+                        Сохранить
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
+          </div>
+
+          {filteredSongs.length === 0 && (
+            <div className="text-center py-12">
+              <Icon name="Search" className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">Песни не найдены. Попробуй изменить фильтры.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+};
 
 const Metronome = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -422,8 +728,12 @@ const Index = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="chords" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid bg-white shadow-md">
+        <Tabs defaultValue="songs" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid bg-white shadow-md">
+            <TabsTrigger value="songs" className="gap-2">
+              <Icon name="Library" className="w-4 h-4" />
+              Песни
+            </TabsTrigger>
             <TabsTrigger value="chords" className="gap-2">
               <Icon name="Hand" className="w-4 h-4" />
               Аккорды
@@ -522,6 +832,10 @@ const Index = () => {
                 ))}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="songs" className="space-y-4 animate-fade-in">
+            <SongsLibrary />
           </TabsContent>
 
           <TabsContent value="theory" className="space-y-4 animate-fade-in">
