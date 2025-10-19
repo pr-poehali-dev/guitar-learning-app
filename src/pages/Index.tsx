@@ -180,10 +180,144 @@ const SONGS_LIBRARY = [
   }
 ];
 
+const getDifficultyColor = (difficulty: string) => {
+  switch (difficulty) {
+    case 'easy': return 'bg-green-100 text-green-700 border-green-300';
+    case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+    case 'hard': return 'bg-red-100 text-red-700 border-red-300';
+    default: return 'bg-gray-100 text-gray-700 border-gray-300';
+  }
+};
+
+const getDifficultyLabel = (difficulty: string) => {
+  switch (difficulty) {
+    case 'easy': return 'Легко';
+    case 'medium': return 'Средне';
+    case 'hard': return 'Сложно';
+    default: return difficulty;
+  }
+};
+
+const SongCard = ({ song }: { song: typeof SONGS_LIBRARY[0] }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Card className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-purple-300">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg mb-1 line-clamp-1">{song.title}</h3>
+                <p className="text-sm text-gray-600">{song.artist}</p>
+              </div>
+              <Icon name="Play" className="text-purple-500 flex-shrink-0 ml-2" size={20} />
+            </div>
+            
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="outline" className="text-xs">
+                {song.genre}
+              </Badge>
+              <Badge variant="outline" className={`text-xs ${getDifficultyColor(song.difficulty)}`}>
+                {getDifficultyLabel(song.difficulty)}
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+              <Icon name="Clock" size={14} />
+              <span>{song.duration}</span>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {song.chords.slice(0, 4).map((chord, idx) => (
+                <span key={idx} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-mono">
+                  {chord}
+                </span>
+              ))}
+              {song.chords.length > 4 && (
+                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
+                  +{song.chords.length - 4}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-2xl">
+            <Icon name="Music" className="text-purple-500" />
+            {song.title}
+          </DialogTitle>
+          <DialogDescription className="text-base">
+            {song.artist} • {song.genre} • {song.duration}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 mt-4">
+          <div>
+            <h4 className="font-semibold mb-2 flex items-center gap-2">
+              <Icon name="Hand" size={18} />
+              Аккорды
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {song.chords.map((chord, idx) => (
+                <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
+                  {chord}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Icon name="FileMusic" size={18} />
+              Табулатура
+            </h4>
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-xl border-2 border-purple-100">
+              <div className="font-mono text-sm space-y-1 overflow-x-auto">
+                {song.tabs.map((line, idx) => (
+                  <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
+                    <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
+                    <span className="text-gray-400">|</span>
+                    <div className="flex gap-3">
+                      {line.frets.map((fret, fretIdx) => (
+                        <span
+                          key={fretIdx}
+                          className={`w-6 text-center ${
+                            fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
+                          }`}
+                        >
+                          {fret}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-gray-400">|</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => setOpen(false)}>
+              <Icon name="Play" className="w-4 h-4 mr-2" />
+              Начать разучивать
+            </Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              <Icon name="Bookmark" className="w-4 h-4 mr-2" />
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const SongsLibrary = () => {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
-  const [selectedSong, setSelectedSong] = useState<typeof SONGS_LIBRARY[0] | null>(null);
 
   const filteredSongs = SONGS_LIBRARY.filter(song => {
     const genreMatch = selectedGenre === 'all' || song.genre === selectedGenre;
@@ -191,191 +325,186 @@ const SongsLibrary = () => {
     return genreMatch && difficultyMatch;
   });
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-100 text-green-700 border-green-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'hard': return 'bg-red-100 text-red-700 border-red-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Icon name="Library" className="text-purple-500" />
+              Библиотека песен
+            </CardTitle>
+            <CardDescription>Разбирай популярные композиции с табулатурами</CardDescription>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Жанр" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все жанры</SelectItem>
+                <SelectItem value="Rock">Rock</SelectItem>
+                <SelectItem value="Pop">Pop</SelectItem>
+                <SelectItem value="Folk">Folk</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Сложность" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все уровни</SelectItem>
+                <SelectItem value="easy">Легко</SelectItem>
+                <SelectItem value="medium">Средне</SelectItem>
+                <SelectItem value="hard">Сложно</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSongs.map((song) => (
+            <SongCard key={song.id} song={song} />
+          ))}
+        </div>
 
-  const getDifficultyLabel = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'Легко';
-      case 'medium': return 'Средне';
-      case 'hard': return 'Сложно';
-      default: return difficulty;
-    }
-  };
+        {filteredSongs.length === 0 && (
+          <div className="text-center py-12">
+            <Icon name="Search" className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600">Песни не найдены. Попробуй изменить фильтры.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const ChordDiagram = ({ chord }: { chord: typeof CHORDS_DATA[0] }) => {
+  const strings = [1, 2, 3, 4, 5, 6];
+  const frets = [0, 1, 2, 3, 4];
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Icon name="Library" className="text-purple-500" />
-                Библиотека песен
-              </CardTitle>
-              <CardDescription>Разбирай популярные композиции с табулатурами</CardDescription>
+    <div className="flex flex-col items-center p-4 bg-white rounded-xl border-2 border-purple-100 hover:border-purple-300 transition-all hover:shadow-lg">
+      <h3 className="font-semibold text-lg mb-2 text-gray-800">{chord.name}</h3>
+      <Badge variant={chord.difficulty === 'easy' ? 'secondary' : 'default'} className="mb-3">
+        {chord.difficulty === 'easy' ? 'Легкий' : 'Средний'}
+      </Badge>
+      
+      <div className="relative">
+        <div className="absolute -left-6 top-8 text-xs text-gray-500 flex flex-col gap-4">
+          {strings.map(s => (
+            <div key={s} className="h-5 flex items-center">{7 - s}</div>
+          ))}
+        </div>
+        
+        <div className="grid gap-4">
+          {strings.map(stringNum => (
+            <div key={stringNum} className="flex gap-6 items-center">
+              {frets.map(fretNum => {
+                const finger = chord.fingers.find(
+                  f => f.string === 7 - stringNum && f.fret === fretNum
+                );
+                return (
+                  <div
+                    key={fretNum}
+                    className={`w-5 h-5 rounded-full border-2 transition-all ${
+                      finger
+                        ? 'bg-purple-500 border-purple-700 shadow-md scale-110'
+                        : 'border-gray-300'
+                    }`}
+                  />
+                );
+              })}
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Жанр" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все жанры</SelectItem>
-                  <SelectItem value="Rock">Rock</SelectItem>
-                  <SelectItem value="Pop">Pop</SelectItem>
-                  <SelectItem value="Folk">Folk</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Сложность" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все уровни</SelectItem>
-                  <SelectItem value="easy">Легко</SelectItem>
-                  <SelectItem value="medium">Средне</SelectItem>
-                  <SelectItem value="hard">Сложно</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-6 mt-2 text-xs text-gray-500 ml-0">
+          {frets.map(f => (
+            <div key={f} className="w-5 text-center">{f === 0 ? '' : f}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TablatureEditor = () => {
+  const [tabs] = useState([
+    { string: 1, frets: [0, 1, 3, 1, 0, '-', '-', '-'] },
+    { string: 2, frets: ['-', '-', '-', '-', '-', 0, 1, 0] },
+    { string: 3, frets: ['-', '-', '-', '-', '-', '-', '-', 2] },
+    { string: 4, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
+    { string: 5, frets: [3, 3, 3, 3, 3, '-', '-', '-'] },
+    { string: 6, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] }
+  ]);
+
+  return (
+    <Card className="animate-fade-in">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Icon name="Music" className="text-purple-500" />
+              Редактор табулатур
+            </CardTitle>
+            <CardDescription>Создавай и изучай композиции в формате TAB</CardDescription>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSongs.map((song) => (
-              <Dialog key={song.id}>
-                <DialogTrigger asChild>
-                  <Card 
-                    className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-purple-300"
-                    onClick={() => setSelectedSong(song)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-1 line-clamp-1">{song.title}</h3>
-                          <p className="text-sm text-gray-600">{song.artist}</p>
-                        </div>
-                        <Icon name="Play" className="text-purple-500 flex-shrink-0 ml-2" size={20} />
-                      </div>
-                      
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="outline" className="text-xs">
-                          {song.genre}
-                        </Badge>
-                        <Badge variant="outline" className={`text-xs ${getDifficultyColor(song.difficulty)}`}>
-                          {getDifficultyLabel(song.difficulty)}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                        <Icon name="Clock" size={14} />
-                        <span>{song.duration}</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {song.chords.slice(0, 4).map((chord, idx) => (
-                          <span key={idx} className="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-mono">
-                            {chord}
-                          </span>
-                        ))}
-                        {song.chords.length > 4 && (
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
-                            +{song.chords.length - 4}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-2xl">
-                      <Icon name="Music" className="text-purple-500" />
-                      {song.title}
-                    </DialogTitle>
-                    <DialogDescription className="text-base">
-                      {song.artist} • {song.genre} • {song.duration}
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <Icon name="Hand" size={18} />
-                        Аккорды
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {song.chords.map((chord, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
-                            {chord}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Icon name="FileMusic" size={18} />
-                        Табулатура
-                      </h4>
-                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-xl border-2 border-purple-100">
-                        <div className="font-mono text-sm space-y-1 overflow-x-auto">
-                          {song.tabs.map((line, idx) => (
-                            <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
-                              <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
-                              <span className="text-gray-400">|</span>
-                              <div className="flex gap-3">
-                                {line.frets.map((fret, fretIdx) => (
-                                  <span
-                                    key={fretIdx}
-                                    className={`w-6 text-center ${
-                                      fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
-                                    }`}
-                                  >
-                                    {fret}
-                                  </span>
-                                ))}
-                              </div>
-                              <span className="text-gray-400">|</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button className="flex-1">
-                        <Icon name="Play" className="w-4 h-4 mr-2" />
-                        Начать разучивать
-                      </Button>
-                      <Button variant="outline">
-                        <Icon name="Bookmark" className="w-4 h-4 mr-2" />
-                        Сохранить
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Icon name="Play" className="w-4 h-4 mr-1" />
+              Играть
+            </Button>
+            <Button size="sm">
+              <Icon name="Save" className="w-4 h-4 mr-1" />
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-100">
+          <div className="font-mono text-sm space-y-1 overflow-x-auto">
+            {tabs.map((line, idx) => (
+              <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
+                <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
+                <span className="text-gray-400">|</span>
+                <div className="flex gap-3">
+                  {line.frets.map((fret, fretIdx) => (
+                    <span
+                      key={fretIdx}
+                      className={`w-6 text-center ${
+                        fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
+                      }`}
+                    >
+                      {fret}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-gray-400">|</span>
+              </div>
             ))}
           </div>
-
-          {filteredSongs.length === 0 && (
-            <div className="text-center py-12">
-              <Icon name="Search" className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">Песни не найдены. Попробуй изменить фильтры.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </>
+        </div>
+        
+        <div className="mt-4 flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm">
+            <Icon name="Plus" className="w-4 h-4 mr-1" />
+            Добавить ноту
+          </Button>
+          <Button variant="outline" size="sm">
+            <Icon name="Eraser" className="w-4 h-4 mr-1" />
+            Очистить
+          </Button>
+          <Button variant="outline" size="sm">
+            <Icon name="Download" className="w-4 h-4 mr-1" />
+            Экспорт
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -567,133 +696,6 @@ const Metronome = () => {
   );
 };
 
-const ChordDiagram = ({ chord }: { chord: typeof CHORDS_DATA[0] }) => {
-  const strings = [1, 2, 3, 4, 5, 6];
-  const frets = [0, 1, 2, 3, 4];
-
-  return (
-    <div className="flex flex-col items-center p-4 bg-white rounded-xl border-2 border-purple-100 hover:border-purple-300 transition-all hover:shadow-lg">
-      <h3 className="font-semibold text-lg mb-2 text-gray-800">{chord.name}</h3>
-      <Badge variant={chord.difficulty === 'easy' ? 'secondary' : 'default'} className="mb-3">
-        {chord.difficulty === 'easy' ? 'Легкий' : 'Средний'}
-      </Badge>
-      
-      <div className="relative">
-        <div className="absolute -left-6 top-8 text-xs text-gray-500 flex flex-col gap-4">
-          {strings.map(s => (
-            <div key={s} className="h-5 flex items-center">{7 - s}</div>
-          ))}
-        </div>
-        
-        <div className="grid gap-4">
-          {strings.map(stringNum => (
-            <div key={stringNum} className="flex gap-6 items-center">
-              {frets.map(fretNum => {
-                const finger = chord.fingers.find(
-                  f => f.string === 7 - stringNum && f.fret === fretNum
-                );
-                return (
-                  <div
-                    key={fretNum}
-                    className={`w-5 h-5 rounded-full border-2 transition-all ${
-                      finger
-                        ? 'bg-purple-500 border-purple-700 shadow-md scale-110'
-                        : 'border-gray-300'
-                    }`}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-6 mt-2 text-xs text-gray-500 ml-0">
-          {frets.map(f => (
-            <div key={f} className="w-5 text-center">{f === 0 ? '' : f}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TablatureEditor = () => {
-  const [tabs] = useState([
-    { string: 1, frets: [0, 1, 3, 1, 0, '-', '-', '-'] },
-    { string: 2, frets: ['-', '-', '-', '-', '-', 0, 1, 0] },
-    { string: 3, frets: ['-', '-', '-', '-', '-', '-', '-', 2] },
-    { string: 4, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] },
-    { string: 5, frets: [3, 3, 3, 3, 3, '-', '-', '-'] },
-    { string: 6, frets: ['-', '-', '-', '-', '-', '-', '-', '-'] }
-  ]);
-
-  return (
-    <Card className="animate-fade-in">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Icon name="Music" className="text-purple-500" />
-              Редактор табулатур
-            </CardTitle>
-            <CardDescription>Создавай и изучай композиции в формате TAB</CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Icon name="Play" className="w-4 h-4 mr-1" />
-              Играть
-            </Button>
-            <Button size="sm">
-              <Icon name="Save" className="w-4 h-4 mr-1" />
-              Сохранить
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border-2 border-purple-100">
-          <div className="font-mono text-sm space-y-1 overflow-x-auto">
-            {tabs.map((line, idx) => (
-              <div key={idx} className="flex gap-2 items-center hover:bg-white/50 px-2 py-1 rounded transition-colors">
-                <span className="text-gray-600 font-semibold w-4">e{7 - idx}</span>
-                <span className="text-gray-400">|</span>
-                <div className="flex gap-3">
-                  {line.frets.map((fret, fretIdx) => (
-                    <span
-                      key={fretIdx}
-                      className={`w-6 text-center ${
-                        fret !== '-' ? 'text-purple-600 font-bold bg-purple-100 rounded px-1' : 'text-gray-400'
-                      }`}
-                    >
-                      {fret}
-                    </span>
-                  ))}
-                </div>
-                <span className="text-gray-400">|</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className="mt-4 flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm">
-            <Icon name="Plus" className="w-4 h-4 mr-1" />
-            Добавить ноту
-          </Button>
-          <Button variant="outline" size="sm">
-            <Icon name="Eraser" className="w-4 h-4 mr-1" />
-            Очистить
-          </Button>
-          <Button variant="outline" size="sm">
-            <Icon name="Download" className="w-4 h-4 mr-1" />
-            Экспорт
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 const Index = () => {
   const [userProgress] = useState(67);
 
@@ -751,6 +753,10 @@ const Index = () => {
               Теория
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="songs" className="space-y-4 animate-fade-in">
+            <SongsLibrary />
+          </TabsContent>
 
           <TabsContent value="chords" className="space-y-4 animate-fade-in">
             <Card>
@@ -832,10 +838,6 @@ const Index = () => {
                 ))}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="songs" className="space-y-4 animate-fade-in">
-            <SongsLibrary />
           </TabsContent>
 
           <TabsContent value="theory" className="space-y-4 animate-fade-in">
