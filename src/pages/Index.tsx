@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import Icon from '@/components/ui/icon';
 
 const CHORDS_DATA = [
@@ -71,6 +72,194 @@ const EXERCISES = [
   { id: 3, name: 'Арпеджио C Major', description: 'Перебор струн в аккорде', progress: 60 },
   { id: 4, name: 'Бой "Шестёрка"', description: 'Популярный ритмический рисунок', progress: 30 }
 ];
+
+const Metronome = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [bpm, setBpm] = useState(120);
+  const [currentBeat, setCurrentBeat] = useState(0);
+  const [beatsPerMeasure, setBeatsPerMeasure] = useState(4);
+  const intervalRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
+
+  const playClick = (isAccent: boolean) => {
+    if (!audioContextRef.current) return;
+    
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.frequency.value = isAccent ? 1000 : 800;
+    gainNode.gain.value = isAccent ? 0.3 : 0.15;
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.05);
+  };
+
+  const toggleMetronome = () => {
+    if (isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setCurrentBeat(0);
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      let beat = 0;
+      
+      const tick = () => {
+        playClick(beat === 0);
+        setCurrentBeat(beat);
+        beat = (beat + 1) % beatsPerMeasure;
+      };
+      
+      tick();
+      intervalRef.current = window.setInterval(tick, (60 / bpm) * 1000);
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      let beat = currentBeat;
+      
+      const tick = () => {
+        playClick(beat === 0);
+        setCurrentBeat(beat);
+        beat = (beat + 1) % beatsPerMeasure;
+      };
+      
+      intervalRef.current = window.setInterval(tick, (60 / bpm) * 1000);
+    }
+  }, [bpm, beatsPerMeasure]);
+
+  return (
+    <Card className="animate-fade-in">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Icon name="Clock" className="text-blue-500" />
+          Цифровой метроном
+        </CardTitle>
+        <CardDescription>Тренируй чувство ритма и играй точно в такт</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex justify-center">
+          <div className="relative w-48 h-48 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-2xl">
+            <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-5xl font-bold text-gray-800">{bpm}</div>
+                <div className="text-sm text-gray-500 uppercase tracking-wider">BPM</div>
+              </div>
+            </div>
+            {isPlaying && (
+              <div 
+                className="absolute inset-0 rounded-full border-8 border-blue-400 animate-ping"
+                style={{ animationDuration: `${60/bpm}s` }}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2">
+          {[...Array(beatsPerMeasure)].map((_, i) => (
+            <div
+              key={i}
+              className={`h-3 rounded-full transition-all duration-75 ${
+                isPlaying && i === currentBeat
+                  ? i === 0
+                    ? 'bg-blue-500 shadow-lg scale-110'
+                    : 'bg-purple-400 shadow-md scale-110'
+                  : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between mb-2">
+              <label className="text-sm font-medium">Темп (BPM)</label>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setBpm(Math.max(40, bpm - 5))}
+                  disabled={isPlaying}
+                >
+                  -5
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setBpm(Math.min(240, bpm + 5))}
+                  disabled={isPlaying}
+                >
+                  +5
+                </Button>
+              </div>
+            </div>
+            <Slider
+              value={[bpm]}
+              onValueChange={(v) => setBpm(v[0])}
+              min={40}
+              max={240}
+              step={1}
+              disabled={isPlaying}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Медленно</span>
+              <span>Быстро</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Размер такта</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[2, 3, 4, 6].map((beats) => (
+                <Button
+                  key={beats}
+                  variant={beatsPerMeasure === beats ? 'default' : 'outline'}
+                  onClick={() => setBeatsPerMeasure(beats)}
+                  disabled={isPlaying}
+                  className="w-full"
+                >
+                  {beats}/4
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <Button 
+          onClick={toggleMetronome}
+          className="w-full h-14 text-lg"
+          variant={isPlaying ? 'destructive' : 'default'}
+        >
+          <Icon name={isPlaying ? 'Pause' : 'Play'} className="w-6 h-6 mr-2" />
+          {isPlaying ? 'Остановить' : 'Запустить метроном'}
+        </Button>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <Icon name="Info" className="text-blue-600 mt-0.5" size={16} />
+            <div className="text-sm text-blue-800">
+              <strong>Совет:</strong> Начни с медленного темпа (60-80 BPM) и постепенно увеличивай скорость по мере освоения упражнения.
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const ChordDiagram = ({ chord }: { chord: typeof CHORDS_DATA[0] }) => {
   const strings = [1, 2, 3, 4, 5, 6];
@@ -336,6 +525,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="theory" className="space-y-4 animate-fade-in">
+            <Metronome />
+            
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="hover:shadow-lg transition-all border-2 border-purple-100">
                 <CardHeader>
